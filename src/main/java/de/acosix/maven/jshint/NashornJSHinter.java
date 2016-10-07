@@ -15,11 +15,102 @@
  */
 package de.acosix.maven.jshint;
 
+import java.io.File;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.logging.Log;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author Axel Faust, <a href="http://acosix.de">Acosix GmbH</a>
  */
-public class NashornJSHinter
+public class NashornJSHinter extends AbstractJSHinter
 {
 
+    protected final ScriptEngine nashornEngine = new ScriptEngineManager().getEngineByName("nashorn");
+
+    protected final Bindings bindings = this.nashornEngine.createBindings();
+
+    protected boolean jshintScriptLoaded = false;
+
+    public NashornJSHinter(final Log log, final String versionOrResourcePath, final boolean resourcePath)
+    {
+        super(log, versionOrResourcePath, resourcePath);
+    }
+
+    public NashornJSHinter(final Log log, final File jshintScriptFile)
+    {
+        super(log, jshintScriptFile);
+    }
+
+    /**
+     *
+     * {@inheritDoc}
+     */
+    @Override
+    protected List<Error> executeJSHintImpl(final File baseDirectory, final String path, final String defaultJSHintConfigContent,
+            final boolean ignoreJSConfigFileOnPaths)
+    {
+        this.ensureEngineInitialisation();
+
+        String effectiveJSHintConfigContent;
+        if (ignoreJSConfigFileOnPaths)
+        {
+            effectiveJSHintConfigContent = defaultJSHintConfigContent;
+        }
+        else
+        {
+            effectiveJSHintConfigContent = this.lookupCustomJSHintConfig(baseDirectory, path);
+            if (StringUtils.isBlank(effectiveJSHintConfigContent))
+            {
+                effectiveJSHintConfigContent = defaultJSHintConfigContent;
+            }
+        }
+        final List<Error> errors = new ArrayList<>();
+
+        final List<String> sourceLines = this.readSourceLines(baseDirectory, path);
+        this.bindings.put("sourceLines", sourceLines);
+        this.bindings.put("errors", errors);
+        this.bindings.put("jshintConfig", effectiveJSHintConfigContent);
+
+        final URL runnerScript = NashornJSHinter.class.getResource("jshint-nashorn-runner.js");
+        this.bindings.put("runnerScript", runnerScript);
+
+        try
+        {
+            this.nashornEngine.eval("load(runnerScript);", this.bindings);
+        }
+        catch (final ScriptException sex)
+        {
+            throw new RuntimeException(new MojoExecutionException("Error running jshint validations", sex));
+        }
+
+        return errors;
+    }
+
+    protected void ensureEngineInitialisation()
+    {
+        if (!this.jshintScriptLoaded)
+        {
+            this.bindings.put("jshintScript", this.jshintScript);
+            try
+            {
+                this.nashornEngine.eval("load(jshintScript);", this.bindings);
+            }
+            catch (final ScriptException sex)
+            {
+                throw new RuntimeException(new MojoExecutionException("Error loading jshint script", sex));
+            }
+
+            this.jshintScriptLoaded = true;
+        }
+    }
 }

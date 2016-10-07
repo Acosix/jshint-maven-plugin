@@ -18,9 +18,8 @@ if (typeof this.runJSHint !== 'function')
 {
     this.runJSHint = (function()
     {
-        var sysOut, Error;
+        var Error;
 
-        sysOut = Packages.java.lang.System.out;
         Error = Packages.de.acosix.maven.jshint.Error;
 
         return function runJSHint(sourceLines)

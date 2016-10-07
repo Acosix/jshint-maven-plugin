@@ -253,28 +253,24 @@ public class JSHintMojo extends AbstractMojo
 
             final JSHinter hinter;
 
-            if (this.preferRhino || !NASHORN_AVAILABLE)
+            if (this.jshintScript != null)
             {
-                if (this.jshintScript != null)
+                final File scriptFile = new File(this.baseDirectory, this.jshintScript);
+                if (scriptFile.isFile() && scriptFile.exists())
                 {
-                    final File scriptFile = new File(this.baseDirectory, this.jshintScript);
-                    if (scriptFile.isFile() && scriptFile.exists())
-                    {
-                        hinter = new RhinoJSHinter(this.getLog(), scriptFile);
-                    }
-                    else
-                    {
-                        hinter = new RhinoJSHinter(this.getLog(), this.jshintScript, true);
-                    }
+                    hinter = (this.preferRhino || !NASHORN_AVAILABLE) ? new RhinoJSHinter(this.getLog(), scriptFile)
+                            : new NashornJSHinter(this.getLog(), scriptFile);
                 }
                 else
                 {
-                    hinter = new RhinoJSHinter(this.getLog(), this.jshintVersion, false);
+                    hinter = (this.preferRhino || !NASHORN_AVAILABLE) ? new RhinoJSHinter(this.getLog(), this.jshintScript, true)
+                            : new NashornJSHinter(this.getLog(), this.jshintScript, true);
                 }
             }
             else
             {
-                throw new MojoExecutionException("Nashorn is not yet supported");
+                hinter = (this.preferRhino || !NASHORN_AVAILABLE) ? new RhinoJSHinter(this.getLog(), this.jshintVersion, false)
+                        : new NashornJSHinter(this.getLog(), this.jshintVersion, false);
             }
 
             final String defaultJSHintConfigContent = this.loadDefaultJSHintConfig();

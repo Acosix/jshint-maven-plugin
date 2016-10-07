@@ -14,3 +14,35 @@
  * limitations under the License.
  */
 
+if (typeof this.runJSHint !== 'function')
+{
+    this.runJSHint = (function()
+    {
+        var Error;
+
+        Error = Java.type('de.acosix.maven.jshint.Error');
+
+        return function runJSHint(sourceLines)
+        {
+            var data, eidx, error;
+
+            JSHINT(Java.from(sourceLines), JSON.parse(jshintConfig));
+
+            data = JSHINT.data();
+
+            if (Array.isArray(data.errors))
+            {
+                for (eidx = 0; eidx < data.errors.length; eidx++)
+                {
+                    error = data.errors[eidx];
+                    if (error !== null)
+                    {
+                        errors.add(new Error(error.id, error.code, error.raw, error.evidence, error.reason, error.line, error.character));
+                    }
+                }
+            }
+        };
+    }());
+}
+
+runJSHint(sourceLines);
