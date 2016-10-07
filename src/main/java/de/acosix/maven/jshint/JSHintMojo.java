@@ -78,7 +78,7 @@ public class JSHintMojo extends AbstractMojo
     /**
      * The source directory to process
      */
-    @Parameter(defaultValue = "${basedir}/src/main", property = "sourceDirectory", required = true)
+    @Parameter(defaultValue = "${project.basedir}/src/main", property = "sourceDirectory", required = true)
     protected File sourceDirectory;
 
     /**
