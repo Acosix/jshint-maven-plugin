@@ -1,0 +1,4 @@
+{
+    // comments are not allowed in JSON
+    "bitwise" : true
+}

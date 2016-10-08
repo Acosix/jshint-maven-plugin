@@ -1,0 +1,17 @@
+{
+	"bitwise": true,
+	"curly": true,
+	"eqeqeq": true,
+	"esversion": 5,
+	"forin": true,
+	"freeze": true,
+	"futurehostile": true,
+	"latedef": true,
+	"maxerr": 100,
+	"noarg": true,
+	"nonew": true,
+	"singleGroups": true,
+	"strict": true,
+	"undef": false,
+	"unused": true
+}
