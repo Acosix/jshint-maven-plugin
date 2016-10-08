@@ -27,7 +27,6 @@ import javax.script.ScriptException;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
-import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author Axel Faust, <a href="http://acosix.de">Acosix GmbH</a>
@@ -56,24 +55,10 @@ public class NashornJSHinter extends AbstractJSHinter
      * {@inheritDoc}
      */
     @Override
-    protected List<Error> executeJSHintImpl(final File baseDirectory, final String path, final String defaultJSHintConfigContent,
-            final boolean ignoreJSConfigFileOnPaths)
+    protected List<Error> executeJSHintImpl(final File baseDirectory, final String path, final String effectiveJSHintConfigContent)
     {
         this.ensureEngineInitialisation();
 
-        String effectiveJSHintConfigContent;
-        if (ignoreJSConfigFileOnPaths)
-        {
-            effectiveJSHintConfigContent = defaultJSHintConfigContent;
-        }
-        else
-        {
-            effectiveJSHintConfigContent = this.lookupCustomJSHintConfig(baseDirectory, path);
-            if (StringUtils.isBlank(effectiveJSHintConfigContent))
-            {
-                effectiveJSHintConfigContent = defaultJSHintConfigContent;
-            }
-        }
         final List<Error> errors = new ArrayList<>();
 
         final List<String> sourceLines = this.readSourceLines(baseDirectory, path);
@@ -100,6 +85,8 @@ public class NashornJSHinter extends AbstractJSHinter
     {
         if (!this.jshintScriptLoaded)
         {
+            this.log.debug("Initialising Nashorn context for JSHint");
+
             this.bindings.put("jshintScript", this.jshintScript);
             try
             {

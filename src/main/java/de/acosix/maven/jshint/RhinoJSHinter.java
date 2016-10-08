@@ -29,10 +29,12 @@ import java.util.List;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
 import org.codehaus.plexus.util.IOUtil;
-import org.codehaus.plexus.util.StringUtils;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.JavaScriptException;
+import org.mozilla.javascript.NativeJavaObject;
 import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.WrappedException;
 
 /**
  * @author Axel Faust, <a href="http://acosix.de">Acosix GmbH</a>
@@ -59,24 +61,9 @@ public class RhinoJSHinter extends AbstractJSHinter
      * {@inheritDoc}
      */
     @Override
-    protected List<Error> executeJSHintImpl(final File baseDirectory, final String path, final String defaultJSHintConfigContent,
-            final boolean ignoreJSConfigFileOnPaths)
+    protected List<Error> executeJSHintImpl(final File baseDirectory, final String path, final String effectiveJSHintConfigContent)
     {
         this.ensureEngineInitialisation();
-
-        String effectiveJSHintConfigContent;
-        if (ignoreJSConfigFileOnPaths)
-        {
-            effectiveJSHintConfigContent = defaultJSHintConfigContent;
-        }
-        else
-        {
-            effectiveJSHintConfigContent = this.lookupCustomJSHintConfig(baseDirectory, path);
-            if (StringUtils.isBlank(effectiveJSHintConfigContent))
-            {
-                effectiveJSHintConfigContent = defaultJSHintConfigContent;
-            }
-        }
 
         final List<Error> errors = new ArrayList<>();
         final Context cx = Context.enter();
@@ -90,6 +77,30 @@ public class RhinoJSHinter extends AbstractJSHinter
             this.scope.put("jshintConfig", this.scope, effectiveJSHintConfigContent);
 
             this.runnerScript.exec(cx, this.scope);
+        }
+        catch (final JavaScriptException jse)
+        {
+            // a Java exception triggered via JS code may be wrapped in this
+            Object value = jse.getValue();
+            if (value instanceof NativeJavaObject)
+            {
+                value = ((NativeJavaObject) value).unwrap();
+            }
+
+            if (value instanceof RuntimeException)
+            {
+                throw (RuntimeException) value;
+            }
+            throw jse;
+        }
+        catch (final WrappedException we)
+        {
+            final Throwable wrapped = we.getWrappedException();
+            if (wrapped instanceof RuntimeException)
+            {
+                throw (RuntimeException) wrapped;
+            }
+            throw we;
         }
         finally
         {

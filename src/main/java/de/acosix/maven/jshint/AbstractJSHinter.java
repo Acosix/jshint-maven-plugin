@@ -123,15 +123,33 @@ public abstract class AbstractJSHinter implements JSHinter
 
         this.log.info(MessageFormat.format("Executing JSHint on {0}{1}{2}", baseDirectory.getPath(), File.separator, path));
 
-        final List<Error> errors = this.executeJSHintImpl(baseDirectory, path, defaultJSHintConfigContent, ignoreJSConfigFileOnPaths);
+        String effectiveJSHintConfigContent;
+        if (ignoreJSConfigFileOnPaths)
+        {
+            effectiveJSHintConfigContent = defaultJSHintConfigContent;
+        }
+        else
+        {
+            effectiveJSHintConfigContent = this.lookupCustomJSHintConfig(baseDirectory, path);
+            if (StringUtils.isBlank(effectiveJSHintConfigContent))
+            {
+                effectiveJSHintConfigContent = defaultJSHintConfigContent;
+            }
+        }
+
+        if (this.log.isDebugEnabled())
+        {
+            this.log.debug("Using effective JSHint config: " + effectiveJSHintConfigContent);
+        }
+
+        final List<Error> errors = this.executeJSHintImpl(baseDirectory, path, effectiveJSHintConfigContent);
 
         this.reportErrors(errors);
 
         return errors;
     }
 
-    protected abstract List<Error> executeJSHintImpl(File baseDirectory, String path, String defaultJSHintConfigContent,
-            boolean ignoreJSConfigFileOnPaths);
+    protected abstract List<Error> executeJSHintImpl(File baseDirectory, String path, String defaultJSHintConfigContent);
 
     protected List<String> readSourceLines(final File baseDirectory, final String path)
     {
@@ -187,6 +205,10 @@ public abstract class AbstractJSHinter implements JSHinter
                 if (configFile.isFile() && configFile.exists())
                 {
                     customJSHintConfig = this.readSource(configFile);
+                    if (this.log.isDebugEnabled())
+                    {
+                        this.log.debug(MessageFormat.format("Loaded custom JSHint config from {0}: {1}", configFile, customJSHintConfig));
+                    }
                     this.effectiveJSHintConfig.put(pathKey, customJSHintConfig);
                 }
                 else
@@ -207,6 +229,10 @@ public abstract class AbstractJSHinter implements JSHinter
                 if (configFile.isFile() && configFile.exists())
                 {
                     customJSHintConfig = this.readSource(configFile);
+                    if (this.log.isDebugEnabled())
+                    {
+                        this.log.debug(MessageFormat.format("Loaded custom JSHint config from {0}: {1}", configFile, customJSHintConfig));
+                    }
                     this.effectiveJSHintConfig.put(baseDirectory, customJSHintConfig);
                 }
             }

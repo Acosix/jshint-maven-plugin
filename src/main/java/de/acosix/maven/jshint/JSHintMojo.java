@@ -145,9 +145,27 @@ public class JSHintMojo extends AbstractMojo
      * @param baseDirectory
      *            the baseDirectory to set
      */
+    public void setBaseDirectory(final String baseDirectory)
+    {
+        this.baseDirectory = new File(baseDirectory);
+    }
+
+    /**
+     * @param baseDirectory
+     *            the baseDirectory to set
+     */
     public void setBaseDirectory(final File baseDirectory)
     {
         this.baseDirectory = baseDirectory;
+    }
+
+    /**
+     * @param sourceDirectory
+     *            the sourceDirectory to set
+     */
+    public void setSourceDirectory(final String sourceDirectory)
+    {
+        this.sourceDirectory = new File(sourceDirectory);
     }
 
     /**
@@ -320,6 +338,13 @@ public class JSHintMojo extends AbstractMojo
     {
         String defaultJSHintConfigContent;
         final File jsHintDefaultConfigFile = new File(this.baseDirectory, this.jsHintDefaultConfigFile);
+
+        if (this.getLog().isDebugEnabled())
+        {
+            this.getLog().debug(MessageFormat.format("JSHint default config file {0} - file in base directory: {1}, exists:{2}",
+                    jsHintDefaultConfigFile, jsHintDefaultConfigFile.isFile(), jsHintDefaultConfigFile.exists()));
+        }
+
         if (!jsHintDefaultConfigFile.isFile() || !jsHintDefaultConfigFile.exists())
         {
             final URL jsHintDefaultConfigResource = JSHintMojo.class.getClassLoader().getResource(this.jsHintDefaultConfigFile);
@@ -341,10 +366,24 @@ public class JSHintMojo extends AbstractMojo
                     throw new RuntimeException(
                             new MojoExecutionException("Error reading default JSHint config from " + this.jsHintDefaultConfigFile, ioex));
                 }
+
+                if (this.getLog().isDebugEnabled())
+                {
+                    this.getLog().debug(
+                            MessageFormat.format("JSHint default config file {0} loaded from classpath", this.jsHintDefaultConfigFile));
+                }
             }
             else
             {
                 defaultJSHintConfigContent = "{}";
+
+                if (this.getLog().isDebugEnabled())
+                {
+                    this.getLog()
+                            .debug(MessageFormat.format(
+                                    "Using empty config as JSHint default config file {0} could not be found in project or on classpath",
+                                    this.jsHintDefaultConfigFile));
+                }
             }
         }
         else
@@ -436,6 +475,7 @@ public class JSHintMojo extends AbstractMojo
         final String[] jshintIgnores = scanner.getIncludedFiles();
         for (final String jshintIgnore : jshintIgnores)
         {
+            final List<String> excludesFromFile = new ArrayList<>();
             final String path;
             if (jshintIgnore.contains(File.separator))
             {
@@ -461,6 +501,7 @@ public class JSHintMojo extends AbstractMojo
                 {
                     if (!StringUtils.isBlank(line))
                     {
+                        excludesFromFile.add(line);
                         if (path != null)
                         {
                             excludes.add(path + File.separator + line);
@@ -470,6 +511,11 @@ public class JSHintMojo extends AbstractMojo
                             excludes.add(line);
                         }
                     }
+                }
+
+                if (this.getLog().isDebugEnabled())
+                {
+                    this.getLog().debug(MessageFormat.format("Loaded exclusion patterns {0} from {1}", excludesFromFile, jshintIgnoreFile));
                 }
             }
             catch (final IOException ioex)

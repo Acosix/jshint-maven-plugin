@@ -18,15 +18,33 @@ if (typeof this.runJSHint !== 'function')
 {
     this.runJSHint = (function()
     {
-        var Error;
+        var Error, RuntimeException, MojoExecutionException;
 
         Error = Java.type('de.acosix.maven.jshint.Error');
+        RuntimeException = Java.type('java.lang.RuntimeException');
+        MojoExecutionException = Java.type('org.apache.maven.plugin.MojoExecutionException');
 
         return function runJSHint(sourceLines)
         {
-            var data, eidx, error;
+            var data, eidx, error, config;
 
-            JSHINT(Java.from(sourceLines), JSON.parse(jshintConfig));
+            try
+            {
+                config = JSON.parse(jshintConfig);
+            }
+            catch (e)
+            {
+                if (e.nashornException !== undefined)
+                {
+                    throw new RuntimeException(new MojoExecutionException('Error parsing JSHint JSON config', e.nashornException));
+                }
+                else
+                {
+                    throw new RuntimeException(new MojoExecutionException('Error parsing JSHint JSON config: ' + e.message));
+                }
+            }
+
+            JSHINT(Java.from(sourceLines), config);
 
             data = JSHINT.data();
 
