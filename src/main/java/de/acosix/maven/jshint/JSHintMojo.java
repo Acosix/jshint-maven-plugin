@@ -139,6 +139,12 @@ public class JSHintMojo extends AbstractMojo
     @Parameter(property = "jshintScript", required = false)
     protected String jshintScript;
 
+    /**
+     * Flag to specify execution of this mojo should be skipped
+     */
+    @Parameter(property = "skip", required = false)
+    protected boolean skip;
+
     // setters primarily to facilitate testing
 
     /**
@@ -259,12 +265,27 @@ public class JSHintMojo extends AbstractMojo
     }
 
     /**
+     * @param skip
+     *            the skip to set
+     */
+    public void setSkip(final boolean skip)
+    {
+        this.skip = skip;
+    }
+
+    /**
      *
      * {@inheritDoc}
      */
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException
     {
+        if (this.skip)
+        {
+            this.getLog().info("Skipping JSHint");
+            return;
+        }
+
         try
         {
             final List<String> scriptFilesToProcess = this.lookupJavaScriptFilesToInclude();
