@@ -29,6 +29,7 @@ import java.util.List;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
 import org.codehaus.plexus.util.IOUtil;
+import org.codehaus.plexus.util.StringUtils;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.JavaScriptException;
 import org.mozilla.javascript.NativeJavaObject;
@@ -42,18 +43,48 @@ import org.mozilla.javascript.WrappedException;
 public class RhinoJSHinter extends AbstractJSHinter
 {
 
+    protected final Object jshintScript;
+
     protected Scriptable scope;
 
     protected Script runnerScript;
 
     public RhinoJSHinter(final Log log, final String versionOrResourcePath, final boolean resourcePath)
     {
-        super(log, versionOrResourcePath, resourcePath);
+        super(log);
+
+        if (StringUtils.isBlank(versionOrResourcePath))
+        {
+            throw new IllegalArgumentException("versionOrResourcePath not provided");
+        }
+
+        if (!resourcePath)
+        {
+            final String scriptName = "jshint-" + versionOrResourcePath + "-rhino.js";
+            this.jshintScript = RhinoJSHinter.class.getResource(scriptName);
+
+            if (this.jshintScript == null)
+            {
+                this.log.error("JSHint script could not be resolved for version " + versionOrResourcePath);
+                throw new RuntimeException(new MojoExecutionException("Error resolving " + scriptName));
+            }
+        }
+        else
+        {
+            this.jshintScript = RhinoJSHinter.class.getClassLoader().getResource(versionOrResourcePath);
+
+            if (this.jshintScript == null)
+            {
+                this.log.error("JSHint script could not be resolved from resource path " + versionOrResourcePath);
+                throw new RuntimeException(new MojoExecutionException("Error resolving " + versionOrResourcePath));
+            }
+        }
     }
 
     public RhinoJSHinter(final Log log, final File jshintScriptFile)
     {
-        super(log, jshintScriptFile);
+        super(log);
+        this.jshintScript = jshintScriptFile;
     }
 
     /**

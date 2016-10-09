@@ -27,6 +27,7 @@ import javax.script.ScriptException;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * @author Axel Faust, <a href="http://acosix.de">Acosix GmbH</a>
@@ -38,16 +39,46 @@ public class NashornJSHinter extends AbstractJSHinter
 
     protected final Bindings bindings = this.nashornEngine.createBindings();
 
+    protected final Object jshintScript;
+
     protected boolean jshintScriptLoaded = false;
 
     public NashornJSHinter(final Log log, final String versionOrResourcePath, final boolean resourcePath)
     {
-        super(log, versionOrResourcePath, resourcePath);
+        super(log);
+
+        if (StringUtils.isBlank(versionOrResourcePath))
+        {
+            throw new IllegalArgumentException("versionOrResourcePath not provided");
+        }
+
+        if (!resourcePath)
+        {
+            final String scriptName = "jshint-" + versionOrResourcePath + "-nashorn.js";
+            this.jshintScript = NashornJSHinter.class.getResource(scriptName);
+
+            if (this.jshintScript == null)
+            {
+                this.log.error("JSHint script could not be resolved for version " + versionOrResourcePath);
+                throw new RuntimeException(new MojoExecutionException("Error resolving " + scriptName));
+            }
+        }
+        else
+        {
+            this.jshintScript = NashornJSHinter.class.getClassLoader().getResource(versionOrResourcePath);
+
+            if (this.jshintScript == null)
+            {
+                this.log.error("JSHint script could not be resolved from resource path " + versionOrResourcePath);
+                throw new RuntimeException(new MojoExecutionException("Error resolving " + versionOrResourcePath));
+            }
+        }
     }
 
     public NashornJSHinter(final Log log, final File jshintScriptFile)
     {
-        super(log, jshintScriptFile);
+        super(log);
+        this.jshintScript = jshintScriptFile;
     }
 
     /**

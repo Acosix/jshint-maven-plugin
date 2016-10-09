@@ -40,62 +40,16 @@ public abstract class AbstractJSHinter implements JSHinter
 
     protected final Log log;
 
-    protected final Object jshintScript;
-
     protected Map<File, String> effectiveJSHintConfig = new HashMap<>();
 
-    public AbstractJSHinter(final Log log, final String versionOrResourcePath, final boolean resourcePath)
+    public AbstractJSHinter(final Log log)
     {
         if (log == null)
         {
             throw new IllegalArgumentException("log not provided");
         }
 
-        if (StringUtils.isBlank(versionOrResourcePath))
-        {
-            throw new IllegalArgumentException("versionOrResourcePath not provided");
-        }
-
         this.log = log;
-
-        if (!resourcePath)
-        {
-            final String scriptName = "jshint-" + versionOrResourcePath + "-rhino.js";
-            this.jshintScript = RhinoJSHinter.class.getResource(scriptName);
-
-            if (this.jshintScript == null)
-            {
-                this.log.error("JSHint script could not be resolved for version " + versionOrResourcePath);
-                throw new RuntimeException(new MojoExecutionException("Error resolving " + scriptName));
-            }
-        }
-        else
-        {
-            this.jshintScript = RhinoJSHinter.class.getClassLoader().getResource(versionOrResourcePath);
-
-            if (this.jshintScript == null)
-            {
-                this.log.error("JSHint script could not be resolved from resource path " + versionOrResourcePath);
-                throw new RuntimeException(new MojoExecutionException("Error resolving " + versionOrResourcePath));
-            }
-        }
-    }
-
-    public AbstractJSHinter(final Log log, final File jshintScriptFile)
-    {
-        if (log == null)
-        {
-            throw new IllegalArgumentException("log not provided");
-        }
-
-        if (jshintScriptFile == null)
-        {
-            throw new IllegalArgumentException("jshintScriptFile not provided");
-        }
-
-        this.log = log;
-
-        this.jshintScript = jshintScriptFile;
     }
 
     /**
