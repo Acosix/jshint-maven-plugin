@@ -12,7 +12,7 @@ THe need for this custom plugin is based on the fact that any existing plugin(s)
 | Option          | Default Value                 | Explanation  |
 | --------------- | :---------------------------: | ------------ |
 | sourceDirectory | `${project.baseDir}/src/main` | The directory in which JavaScript sources will be processed |
-| jsHintDefaultConfigFile | `jshint.config.json`   | The JSON file to specify default options to JSHint - the mojo will also pick up configuration files from .jshintrc on script file paths |
+| jsHintDefaultConfigFile | `.jshintrc`   | The JSON file to specify default options to JSHint - the mojo will also pick up configuration files from .jshintrc on script file paths |
 | incldues        | `*.js, **/*.js`             | The inclusion pattern to match script files that should be processed |
 | excldues        |                               | The exclusion pattern to match script files that should not be processed |
 | failOnError     | `true`                       | The flag specifying if the whole project build should fail when JSHint errors are found |

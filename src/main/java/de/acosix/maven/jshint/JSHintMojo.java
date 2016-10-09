@@ -18,16 +18,20 @@ package de.acosix.maven.jshint;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -76,6 +80,12 @@ public class JSHintMojo extends AbstractMojo
     protected File baseDirectory;
 
     /**
+     * The build output directory of the current project
+     */
+    @Parameter(defaultValue = "${project.build.directory}", property = "outputDirectory", required = true, readonly = true)
+    protected File outputDirectory;
+
+    /**
      * The source directory to process
      */
     @Parameter(defaultValue = "${project.basedir}/src/main", property = "sourceDirectory", required = true)
@@ -87,7 +97,7 @@ public class JSHintMojo extends AbstractMojo
      * first against the {@link #baseDirectory} of the current project, falling back on classpath resolution against classpath of the plugin
      * and its configured dependency.
      */
-    @Parameter(defaultValue = "jshint.config.json", property = "sourceDirectory", required = true)
+    @Parameter(defaultValue = ".jshintrc", property = "jsHintDefaultConfigFile", required = true)
     protected String jsHintDefaultConfigFile;
 
     /**
@@ -138,6 +148,13 @@ public class JSHintMojo extends AbstractMojo
      */
     @Parameter(property = "jshintScript", required = false)
     protected String jshintScript;
+
+    /**
+     * The path / name of the checkstyle XML report file to write if any JSHint errors / warnings have been found. This path is relative to
+     * the project's build directory.
+     */
+    @Parameter(property = "checkstyleReportFile", required = false)
+    protected String checkstyleReportFile;
 
     /**
      * Flag to specify execution of this mojo should be skipped
@@ -265,6 +282,15 @@ public class JSHintMojo extends AbstractMojo
     }
 
     /**
+     * @param checkstyleReportFile
+     *            the checkstyleReportFile to set
+     */
+    public void setCheckstyleReportFile(final String checkstyleReportFile)
+    {
+        this.checkstyleReportFile = checkstyleReportFile;
+    }
+
+    /**
      * @param skip
      *            the skip to set
      */
@@ -316,6 +342,7 @@ public class JSHintMojo extends AbstractMojo
 
             int filesChecked = 0;
             int filesWithErrors = 0;
+            final Map<String, List<Error>> errorsByFile = new HashMap<>();
             for (final String scriptFile : scriptFilesToProcess)
             {
                 final List<Error> errors = hinter.executeJSHint(this.sourceDirectory, scriptFile, defaultJSHintConfigContent,
@@ -324,6 +351,7 @@ public class JSHintMojo extends AbstractMojo
                 if (!errors.isEmpty())
                 {
                     filesWithErrors++;
+                    errorsByFile.put(scriptFile, errors);
                 }
                 filesChecked++;
             }
@@ -334,6 +362,8 @@ public class JSHintMojo extends AbstractMojo
             {
                 final String message = MessageFormat.format("JSHint errors found in {0} source files", String.valueOf(filesWithErrors));
                 this.getLog().error(message);
+
+                this.writeReports(errorsByFile);
 
                 if (this.failOnError)
                 {
@@ -352,6 +382,45 @@ public class JSHintMojo extends AbstractMojo
                 throw (MojoExecutionException) re.getCause();
             }
             throw re;
+        }
+    }
+
+    protected void writeReports(final Map<String, List<Error>> errorsByFile)
+    {
+        if (StringUtils.isNotBlank(this.checkstyleReportFile))
+        {
+            if (this.getLog().isDebugEnabled())
+            {
+                this.getLog().debug("Writing error report to checkstyle file: " + this.checkstyleReportFile);
+            }
+            final File checkstyleReportFile = new File(this.outputDirectory, this.checkstyleReportFile);
+
+            final File parentDirectory = checkstyleReportFile.getParentFile();
+            if (!parentDirectory.exists())
+            {
+                if (this.getLog().isDebugEnabled())
+                {
+                    this.getLog().debug("Creating report parent director(y|ies): " + parentDirectory);
+                }
+                parentDirectory.mkdirs();
+            }
+
+            OutputStream os = null;
+            try
+            {
+                os = new FileOutputStream(checkstyleReportFile, false);
+
+                final CheckstyleJSHintReporter checkstyleJSHintReporter = new CheckstyleJSHintReporter();
+                checkstyleJSHintReporter.generateReport(errorsByFile, os);
+            }
+            catch (final IOException ioex)
+            {
+                throw new RuntimeException(new MojoExecutionException("Failed to write checkstyle report file", ioex));
+            }
+            finally
+            {
+                IOUtil.close(os);
+            }
         }
     }
 
