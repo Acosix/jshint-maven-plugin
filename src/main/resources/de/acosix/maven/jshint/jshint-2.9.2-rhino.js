@@ -7,7 +7,7 @@
  */
 //#!/usr/bin/env rhino
 var window = {};
-/*! 2.9.3 */
+/*! 2.9.2 */
 var JSHINT;
 if (typeof window === 'undefined') window = {};
 (function () {
@@ -14930,7 +14930,7 @@ Lexer.prototype = {
     var flags = [];
     var malformed = false;
     var isCharSet = false;
-    var terminated, malformedDesc;
+    var terminated;
 
     var scanUnexpectedChars = function() {
       // Unexpected control character
@@ -15048,24 +15048,10 @@ Lexer.prototype = {
 
     while (index < length) {
       char = this.peek(index);
-      if (!/[gimy]/.test(char)) {
+      if (!/[gim]/.test(char)) {
         break;
       }
-      if (char === "y") {
-        if (!state.inES6(true)) {
-          this.trigger("warning", {
-            code: "W119",
-            line: this.line,
-            character: this.char,
-            data: [ "Sticky RegExp flag", "6" ]
-          });
-        }
-        if (value.indexOf("y") > -1) {
-          malformedDesc = "Duplicate RegExp flag";
-        }
-      } else {
-        flags.push(char);
-      }
+      flags.push(char);
       value += char;
       index += 1;
     }
@@ -15075,21 +15061,12 @@ Lexer.prototype = {
     try {
       new RegExp(body, flags.join(""));
     } catch (err) {
-      /**
-       * Because JSHint relies on the current engine's RegExp parser to
-       * validate RegExp literals, the description (exposed as the "data"
-       * property on the error object) is platform dependent.
-       */
-      malformedDesc = err.message;
-    }
-
-    if (malformedDesc) {
       malformed = true;
       this.trigger("error", {
         code: "E016",
         line: this.line,
         character: this.char,
-        data: [ malformedDesc ]
+        data: [ err.message ] // Platform dependent!
       });
     }
 
@@ -15606,15 +15583,13 @@ var errors = {
   E050: "Mozilla requires the yield expression to be parenthesized here.",
   E051: null,
   E052: "Unclosed template literal.",
-  E053: "{a} declarations are only allowed at the top level of module scope.",
+  E053: "Export declaration must be in global scope.",
   E054: "Class properties must be methods. Expected '(' but instead saw '{a}'.",
   E055: "The '{a}' option cannot be set after any executable code.",
   E056: "'{a}' was used before it was declared, which is illegal for '{b}' variables.",
   E057: "Invalid meta property: '{a}.{b}'.",
   E058: "Missing semicolon.",
-  E059: "Incompatible values for the '{a}' and '{b}' linting options.",
-  E060: "Non-callable values cannot be used as the second operand to instanceof.",
-  E061: "Invalid position for 'yield' expression (consider wrapping in parenthesis)."
+  E059: "Incompatible values for the '{a}' and '{b}' linting options."
 };
 
 var warnings = {
@@ -15759,8 +15734,7 @@ var warnings = {
   W135: "{a} may not be supported by non-browser environments.",
   W136: "'{a}' must be in function scope.",
   W137: "Empty destructuring.",
-  W138: "Regular parameters should not come after default parameters.",
-  W139: "Function expressions should not be used as the second operand to instanceof."
+  W138: "Regular parameters should not come after default parameters."
 };
 
 var info = {
@@ -18118,23 +18092,12 @@ exports.ecmaIdentifiers = {
     JSON               : false
   },
   6: {
-    ArrayBuffer        : false,
-    DataView           : false,
-    Float32Array       : false,
-    Float64Array       : false,
-    Int8Array          : false,
-    Int16Array         : false,
-    Int32Array         : false,
     Map                : false,
     Promise            : false,
     Proxy              : false,
     Reflect            : false,
     Set                : false,
     Symbol             : false,
-    Uint8Array         : false,
-    Uint16Array        : false,
-    Uint32Array        : false,
-    Uint8ClampledArray : false,
     WeakMap            : false,
     WeakSet            : false
   }
@@ -19530,16 +19493,16 @@ var JSHINT = (function() {
     }
 
     while (j <= i) {
-      t = lex.token();
-
-      // Peeking past the end of the program should produce the "(end)" token
-      // and should not extend the lookahead buffer.
-      if (!t && state.tokens.next.id === "(end)") {
-        return state.tokens.next;
+      t = lookahead[j];
+      if (!t) {
+        t = lookahead[j] = lex.token();
       }
-
-      lookahead[j] = t;
       j += 1;
+    }
+
+    // Peeking past the end of the program should produce the "(end)" token.
+    if (!t && state.tokens.next.id === "(end)") {
+      return state.tokens.next;
     }
 
     return t;
@@ -19620,27 +19583,23 @@ var JSHINT = (function() {
   }
 
   function isInfix(token) {
-    return token.infix ||
-      (!token.identifier && !token.template && !!token.led) ||
-      // Although implemented as an Identifier, the `yield` keyword behaves as
-      // an operator when it appears in the body of a generator function.
-      (token.id === "yield" && !!state.funct["(generator)"]);
+    return token.infix || (!token.identifier && !token.template && !!token.led);
   }
 
-  function isEndOfExpr(curr, next) {
-    if (arguments.length === 0) {
-      curr = state.tokens.curr;
-      next = state.tokens.next;
-    }
-
+  function isEndOfExpr() {
+    var curr = state.tokens.curr;
+    var next = state.tokens.next;
     if (next.id === ";" || next.id === "}" || next.id === ":") {
       return true;
     }
-    if (isInfix(next) === isInfix(curr) || curr.ltBoundary === "after" ||
-      next.ltBoundary === "before") {
+    if (isInfix(next) === isInfix(curr) || (curr.id === "yield" && state.inMoz())) {
       return curr.line !== startLine(next);
     }
     return false;
+  }
+
+  function isBeginOfExpr(prev) {
+    return !prev.left && prev.arity !== "unary";
   }
 
   // This is the heart of JSHINT, the Pratt parser. In addition to parsing, it
@@ -19699,7 +19658,7 @@ var JSHINT = (function() {
       left = state.tokens.curr.fud();
     } else {
       if (state.tokens.curr.nud) {
-        left = state.tokens.curr.nud(rbp);
+        left = state.tokens.curr.nud();
       } else {
         error("E030", state.tokens.curr, state.tokens.curr.id);
       }
@@ -20501,15 +20460,33 @@ var JSHINT = (function() {
 
   /*
    * read all directives
+   * recognizes a simple form of asi, but always
+   * warns, if it is used
    */
   function directives() {
-    var current = state.tokens.next;
+    var i, p, pn;
+
     while (state.tokens.next.id === "(string)") {
-      var next = peekIgnoreEOL();
-      if (!isEndOfExpr(current, next)) {
+      p = peek(0);
+      if (p.id === "(endline)") {
+        i = 1;
+        do {
+          pn = peek(i++);
+        } while (pn.id === "(endline)");
+        if (pn.id === ";") {
+          p = pn;
+        } else if (pn.value === "[" || pn.value === ".") {
+          // string -> [ | . is a valid production
+          break;
+        } else if (!state.option.asi || pn.value === "(") {
+          // string -> ( is not a valid production
+          warning("W033", state.tokens.next);
+        }
+      } else if (p.id === "." || p.id === "[") {
         break;
+      } else if (p.id !== ";") {
+        warning("W033", p);
       }
-      current = next;
 
       advance();
       var directive = state.tokens.curr.value;
@@ -20521,7 +20498,9 @@ var JSHINT = (function() {
       // there's no directive negation, so always set to true
       state.directive[directive] = true;
 
-      parseFinalSemicolon();
+      if (p.id === ";") {
+        advance(";");
+      }
     }
 
     if (state.isStrict()) {
@@ -20936,30 +20915,7 @@ var JSHINT = (function() {
   bitwise(">>", "shiftright", 120);
   bitwise(">>>", "shiftrightunsigned", 120);
   infix("in", "in", 120);
-  infix("instanceof", function(left, token) {
-    var right;
-    var scope = state.funct["(scope)"];
-    token.left = left;
-    token.right = right = expression(120);
-
-    if (right.id === "(number)" ||
-        right.id === "(string)" ||
-        right.value === "null" ||
-        (right.value === "undefined" && !scope.has("undefined")) ||
-        right.arity === "unary" ||
-        right.id === "{" ||
-        (right.id === "[" && !right.right) ||
-        right.id === "(regexp)" ||
-        (right.id === "(template)" && !right.tag)) {
-      error("E060");
-    }
-
-    if (right.id === "function") {
-      warning("W139");
-    }
-
-    return token;
-  }, 120);
+  infix("instanceof", "instanceof", 120);
   infix("+", function(left, that) {
     var right;
     that.left = left;
@@ -21010,13 +20966,10 @@ var JSHINT = (function() {
   suffix("++");
   prefix("++", "preinc");
   state.syntax["++"].exps = true;
-  state.syntax["++"].ltBoundary = "before";
 
   suffix("--");
   prefix("--", "predec");
   state.syntax["--"].exps = true;
-  state.syntax["--"].ltBoundary = "before";
-
   prefix("delete", function() {
     var p = expression(10);
     if (!p) {
@@ -21298,7 +21251,7 @@ var JSHINT = (function() {
     return that;
   }, 155, true).exps = true;
 
-  prefix("(", function(rbp) {
+  prefix("(", function() {
     var pn = state.tokens.next, pn1, i = -1;
     var ret, triggerFnExpr, first, last;
     var parens = 1;
@@ -21316,7 +21269,7 @@ var JSHINT = (function() {
       i += 1;
       pn1 = pn;
       pn = peek(i);
-    } while (!(parens === 0 && pn1.value === ")") && pn.type !== "(end)");
+    } while (!(parens === 0 && pn1.value === ")") && pn.value !== ";" && pn.type !== "(end)");
 
     if (state.tokens.next.id === "function") {
       triggerFnExpr = state.tokens.next.immed = true;
@@ -21364,6 +21317,10 @@ var JSHINT = (function() {
 
       first = exprs[0];
       last = exprs[exprs.length - 1];
+
+      if (!isNecessary) {
+        isNecessary = preceeding.assign || preceeding.delim;
+      }
     } else {
       ret = first = last = exprs[0];
 
@@ -21398,10 +21355,9 @@ var JSHINT = (function() {
       // The operator may be necessary to override the default binding power of
       // neighboring operators (whenever there is an operator in use within the
       // first expression *or* the current group contains multiple expressions)
-      if (!isNecessary && (isInfix(first) || first.right || ret.exprs)) {
+      if (!isNecessary && (first.left || first.right || ret.exprs)) {
         isNecessary =
-          (rbp > first.lbp) ||
-          (rbp > 0 && rbp === first.lbp) ||
+          (!isBeginOfExpr(preceeding) && first.lbp <= preceeding.lbp) ||
           (!isEndOfExpr() && last.lbp < state.tokens.next.lbp);
       }
 
@@ -21757,17 +21713,12 @@ var JSHINT = (function() {
     return funct["(global)"] && !funct["(verb)"];
   }
 
-  /**
-   * This function is used as both a null-denotation method *and* a
-   * left-denotation method, meaning the first parameter is overloaded.
-   */
-  function doTemplateLiteral(leftOrRbp) {
+  function doTemplateLiteral(left) {
     // ASSERT: this.type === "(template)"
     // jshint validthis: true
     var ctx = this.context;
     var noSubst = this.noSubst;
     var depth = this.depth;
-    var left = typeof leftOrRbp === "number" ? null : leftOrRbp;
 
     if (!noSubst) {
       while (!end()) {
@@ -22510,11 +22461,11 @@ var JSHINT = (function() {
   });
   varstatement.exps = true;
 
-  blockstmt("class", function(rbp) {
-    return classdef.call(this, rbp, true);
+  blockstmt("class", function() {
+    return classdef.call(this, true);
   });
 
-  function classdef(rbp, isStatement) {
+  function classdef(isStatement) {
 
     /*jshint validthis:true */
     if (!state.inES6()) {
@@ -23018,7 +22969,6 @@ var JSHINT = (function() {
     var level = 0; // BindingPattern "level" --- level 0 === no BindingPattern
     var comma; // First comma punctuator at level 0
     var initializer; // First initializer at level 0
-    var bindingPower;
 
     // If initial token is a BindingPattern, count it as such.
     if (checkPunctuators(state.tokens.next, ["{", "["])) ++level;
@@ -23037,13 +22987,8 @@ var JSHINT = (function() {
 
     // if we're in a for (… in|of …) statement
     if (_.contains(inof, nextop.value)) {
-      if (nextop.value === "of") {
-        bindingPower = 20;
-        if (!state.inES6()) {
-          warning("W104", nextop, "for of", "6");
-        }
-      } else {
-        bindingPower = 0;
+      if (!state.inES6() && nextop.value === "of") {
+        warning("W104", nextop, "for of", "6");
       }
 
       var ok = !(initializer || comma);
@@ -23070,13 +23015,7 @@ var JSHINT = (function() {
         Object.create(varstatement).fud({ prefix: true, implied: "for", ignore: !ok });
       }
       advance(nextop.value);
-      // The binding power is variable because for-in statements accept any
-      // Expression in this position, while for-of statements are limited to
-      // AssignmentExpressions. For example:
-      //
-      //     for ( LeftHandSideExpression in Expression ) Statement
-      //     for ( LeftHandSideExpression of AssignmentExpression ) Statement
-      expression(bindingPower);
+      expression(20);
       advance(")", t);
 
       if (nextop.value === "in" && state.option.forin) {
@@ -23257,17 +23196,8 @@ var JSHINT = (function() {
   (function(x) {
     x.exps = true;
     x.lbp = 25;
-    x.ltBoundary = "after";
   }(prefix("yield", function() {
-    if (state.inMoz()) {
-      return mozYield.call(this);
-    }
     var prev = state.tokens.prev;
-
-    if (!this.beginsStmt && prev.lbp > 30 && !checkPunctuators(prev, ["("])) {
-      error("E061", this);
-    }
-
     if (state.inES6(true) && !state.funct["(generator)"]) {
       // If it's a yield within a catch clause inside a generator then that's ok
       if (!("(catch)" === state.funct["(name)"] && state.funct["(context)"]["(generator)"])) {
@@ -23284,48 +23214,7 @@ var JSHINT = (function() {
       advance("*");
     }
 
-    // Parse operand
-    if (!isEndOfExpr() && state.tokens.next.id !== ",") {
-      if (state.tokens.next.nud) {
-
-        nobreaknonadjacent(state.tokens.curr, state.tokens.next);
-        this.first = expression(10);
-
-        if (this.first.type === "(punctuator)" && this.first.value === "=" &&
-            !this.first.paren && !state.option.boss) {
-          warningAt("W093", this.first.line, this.first.character);
-        }
-      } else if (state.tokens.next.led) {
-        if (state.tokens.next.id !== ",") {
-          error("W017", state.tokens.next);
-        }
-      }
-    }
-
-    return this;
-  })));
-
-  /**
-   * Parsing logic for non-standard Mozilla implementation of `yield`
-   * expressions.
-   */
-  var mozYield = function() {
-    var prev = state.tokens.prev;
-    if (state.inES6(true) && !state.funct["(generator)"]) {
-      // If it's a yield within a catch clause inside a generator then that's ok
-      if (!("(catch)" === state.funct["(name)"] && state.funct["(context)"]["(generator)"])) {
-        error("E046", state.tokens.curr, "yield");
-      }
-    }
-    state.funct["(generator)"] = "yielded";
-    var delegatingYield = false;
-
-    if (state.tokens.next.value === "*") {
-      delegatingYield = true;
-      advance("*");
-    }
-
-    if (this.line === startLine(state.tokens.next)) {
+    if (this.line === startLine(state.tokens.next) || !state.inMoz()) {
       if (delegatingYield ||
           (state.tokens.next.id !== ";" && !state.option.asi &&
            !state.tokens.next.reach && state.tokens.next.nud)) {
@@ -23339,7 +23228,7 @@ var JSHINT = (function() {
         }
       }
 
-      if (state.tokens.next.id !== ")" &&
+      if (state.inMoz() && state.tokens.next.id !== ")" &&
           (prev.lbp > 30 || (!prev.assign && !isEndOfExpr()) || prev.id === "yield")) {
         error("E050", this);
       }
@@ -23347,7 +23236,8 @@ var JSHINT = (function() {
       nolinebreak(this); // always warn (Line breaking error)
     }
     return this;
-  };
+  })));
+
 
   stmt("throw", function() {
     nolinebreak(this);
@@ -23359,10 +23249,6 @@ var JSHINT = (function() {
   }).exps = true;
 
   stmt("import", function() {
-    if (!state.funct["(scope)"].block.isGlobal()) {
-      error("E053", state.tokens.curr, "Import");
-    }
-
     if (!state.inES6()) {
       warning("W119", state.tokens.curr, "import", "6");
     }
@@ -23461,7 +23347,7 @@ var JSHINT = (function() {
     }
 
     if (!state.funct["(scope)"].block.isGlobal()) {
-      error("E053", state.tokens.curr, "Export");
+      error("E053", state.tokens.curr);
       ok = false;
     }
 

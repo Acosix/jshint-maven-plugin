@@ -156,7 +156,7 @@ public class RhinoJSHinter extends AbstractJSHinter
                 jshintScript.exec(cx, this.scope);
 
                 // the runner script is our wrapper for repeated execution
-                this.runnerScript = this.compileRunnerScript(cx);
+                this.runnerScript = this.compileInternalScriptScript(cx, "jshint-rhino-runner.js");
             }
             catch (final IOException ioex)
             {
@@ -206,12 +206,12 @@ public class RhinoJSHinter extends AbstractJSHinter
         return jshintScript;
     }
 
-    protected Script compileRunnerScript(final Context cx) throws IOException
+    protected Script compileInternalScriptScript(final Context cx, final String scriptName) throws IOException
     {
-        final InputStream scriptInputStream = RhinoJSHinter.class.getResourceAsStream("jshint-rhino-runner.js");
+        final InputStream scriptInputStream = RhinoJSHinter.class.getResourceAsStream(scriptName);
         try
         {
-            final Script script = this.compileScript(cx, "jshint-rhino-runner.js", scriptInputStream);
+            final Script script = this.compileScript(cx, scriptName, scriptInputStream);
             return script;
         }
         finally
