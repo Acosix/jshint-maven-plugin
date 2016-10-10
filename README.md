@@ -21,6 +21,8 @@ THe need for this custom plugin is based on the fact that any existing plugin(s)
 | ignoreJSHintConfigFiles | `false`                       | The flag specifying that any .jshintrc files found on paths within the source directory should be ignored and the configuration therein not supersede the default configuration |
 | jshintVersion   | 2.9.3                         | The version of the embedded JSHint script to use |
 | jshintScript    |                               | The path to a custom JSHint script to be used - this supports resolution of JSHint scripts in the projects directory structure as well as the classpath of the plugin including any dependencies (for reusable script packaging). Please note that any custom jshintScript must support the API `JSHINT( source, options, predef )` and be [adapted to work with current Rhino / Nashorn versions](https://github.com/fabioz/jshint/commit/edb0ecf79118c65552f8de8a0af6496704f6f52b) (even though the linked commit only refers to Nashorn it also applies to Rhino as was discovered in developing this plugin) |
+| checkstyleReportFile |                          | The path relative to the projects build folder where a checkstyle-like report file about issues found by the plugin should be written (report file will only be written if this is set |
+| skip            | `false`                      | The flag specifying the execution of this plugin should be skipped |
 
 
 ## Example Configurations
