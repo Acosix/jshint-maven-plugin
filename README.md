@@ -5,7 +5,7 @@ This plugin provides the ability to run [JSHint](http://www.jshint.com) validati
 THe need for this custom plugin is based on the fact that any existing plugin(s) has/have fallen out of grace with their original developer(s). I.e. [cjdev/jshint-mojo](https://github.com/cjdev/jshint-mojo) (linked from the JSHint homepage itself) has last been updated on Mar 20th, 2015 and to date has 16 issues and 12 PRs pending.
 
 ## Goals
-* `jshint-maven-plugin:jshint`: runs JSHint on your JavaScript files based on the global plugin configuration
+* `jshint:jshint`: runs JSHint on your JavaScript files based on the global plugin configuration
 
 ## Configuration Options
 
