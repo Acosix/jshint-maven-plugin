@@ -8,6 +8,8 @@
     <packaging>maven-plugin</packaging>
 
     <name>JSHint Maven Plugin</name>
+    <description>Maven plugin to run JSHint tests against project's JavaScripts sources with support of on-path .jshintrc and .jshintignore configurations</description>
+    <url>https://github.com/Acosix/jshint-maven-plugin</url>
 
     <licenses>
         <license>
