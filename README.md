@@ -31,7 +31,7 @@ THe need for this custom plugin is based on the fact that any existing plugin(s)
 <plugin>
      <groupId>de.acosix.maven</groupId>
      <artifactId>jshint-maven-plugin</artifactId>
-     <version>0.0.1-SNAPSHOT</version>
+     <version>1.0.0</version>
      <configuration>
          <jsHintDefaultConfigFile>src/main/resources/jshint.conf.json</jsHintDefaultConfigFile>
          <sourceDirectory>src/main/web</sourceDirectory>
