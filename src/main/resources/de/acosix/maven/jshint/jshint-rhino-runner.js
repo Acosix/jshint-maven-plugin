@@ -37,7 +37,7 @@ if (typeof this.runJSHint !== 'function')
                 throw new RuntimeException(new MojoExecutionException('Error parsing JSHint JSON config: ' + e.message));
             }
 
-            JSHINT(sourceLines, JSON.parse(jshintConfig));
+            JSHINT(sourceLines, config, config.globals || {});
 
             data = JSHINT.data();
 

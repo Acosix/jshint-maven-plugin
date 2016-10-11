@@ -44,7 +44,7 @@ if (typeof this.runJSHint !== 'function')
                 }
             }
 
-            JSHINT(Java.from(sourceLines), config);
+            JSHINT(Java.from(sourceLines), config, config.globals || {});
 
             data = JSHINT.data();
 
